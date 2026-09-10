@@ -54,7 +54,17 @@ main.ura:3:13
 
 ## 入れる
 
-Python 3.10 以上が要ります。依存パッケージはありません。
+必要なのは **Python 3.10 以上** だけです。依存パッケージはありません。
+
+### 方法 1: GitHub から直接入れる(いちばん短い)
+
+```bash
+pip install git+https://github.com/claudistcat/urayaha.git
+```
+
+これで `urayaha` コマンドが使えるようになります。
+
+### 方法 2: clone してから入れる(処理系も触るなら)
 
 ```bash
 git clone https://github.com/claudistcat/urayaha.git
@@ -62,18 +72,112 @@ cd urayaha
 pip install -e .
 ```
 
-これで `urayaha` コマンドが使えます。インストールせずに試すこともできます。
+`-e` を付けると、ソースを書き換えた結果がそのまま `urayaha` コマンドに反映されます。
+
+### 方法 3: 入れずに使う
+
+clone するだけでも動きます。`bin/` のラッパが必要な環境変数を設定します。
 
 ```bash
-# Windows (PowerShell)
-.\bin\urayaha.cmd run examples\hello.ura
+git clone https://github.com/claudistcat/urayaha.git
+cd urayaha
+```
 
-# それ以外
+```powershell
+# Windows (PowerShell / cmd)
+.\bin\urayaha.cmd run examples\hello.ura
+```
+
+```bash
+# macOS / Linux
 ./bin/urayaha run examples/hello.ura
 ```
 
-Windows のコンソールで日本語が化けるときは `PYTHONIOENCODING=utf-8` を
-設定してください。`bin/` のラッパは自動で設定します。
+Python を直接呼ぶこともできます。
+
+```bash
+PYTHONIOENCODING=utf-8 python -m urayaha run examples/hello.ura
+```
+
+---
+
+### 入ったか確かめる
+
+```bash
+urayaha version
+```
+
+```
+URAYAHA 0.4.0
+```
+
+`hello.ura` を作って動かします。
+
+```bash
+echo 'イヤッハー("ワァ……！")' > hello.ura
+urayaha run hello.ura
+```
+
+```
+ワァ……！
+```
+
+プロジェクトのひな形も作れます。
+
+```bash
+urayaha new myproject
+cd myproject
+urayaha run src/main.ura
+```
+
+```
+myproject/
+├─ urayaha.toml
+├─ src/
+│  └─ main.ura
+└─ tests/
+```
+
+---
+
+### うまくいかないとき
+
+**`urayaha` が見つからない**
+
+pip の入れ先が PATH に入っていません。モジュールとして呼べば動きます。
+
+```bash
+python -m urayaha version
+```
+
+PATH を通したい場合は、`python -m site --user-base` が指す場所の `bin`
+(Windows なら `Scripts`)を PATH に足してください。
+
+**日本語が化ける(Windows)**
+
+コンソールの文字コードが UTF-8 でないときに起きます。
+
+```powershell
+$env:PYTHONIOENCODING = "utf-8"
+```
+
+`bin/urayaha.cmd` と `bin/urayaha` を使う場合は自動で設定されるので不要です。
+
+**数値が読めない**
+
+`--human-number` を付けると 10 進で表示されます。
+
+```bash
+urayaha run main.ura --human-number
+```
+
+---
+
+### 消す
+
+```bash
+pip uninstall urayaha
+```
 
 ---
 
