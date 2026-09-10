@@ -1,0 +1,3 @@
+# 改行は LF で揃える。CRLF だと Windows で fmt --check が全ファイルを未整形と判定する
+* text=auto eol=lf
+*.png binary

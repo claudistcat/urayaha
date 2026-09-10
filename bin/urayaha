@@ -1,0 +1,3 @@
+#!/bin/sh
+# 開発中に PATH を通さず使うためのラッパ
+PYTHONIOENCODING=utf-8 exec python -m urayaha "$@"
