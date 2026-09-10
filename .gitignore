@@ -5,3 +5,5 @@ dist/
 .codex*.log
 .tmp-*/
 urayaha_sample.txt
+PROGRESS.md
+PROGRESS.autosave.md
