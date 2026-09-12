@@ -7,3 +7,6 @@ dist/
 urayaha_sample.txt
 PROGRESS.md
 PROGRESS.autosave.md
+build_dist/
+build/
+.pypirc

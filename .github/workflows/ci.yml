@@ -36,6 +36,12 @@ jobs:
       - name: URAYAHA 側のテスト
         run: urayaha test
 
+      - name: パッケージが組み立てられるか
+        run: |
+          python -m pip install --quiet build twine
+          python -m build --outdir build_dist
+          python -m twine check build_dist/*
+
       - name: サンプルが走るか
         shell: bash
         run: |

@@ -1,28 +1,47 @@
 [build-system]
-requires = ["setuptools>=61"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "urayaha"
-version = "0.4.0"
+dynamic = ["version"]
 description = "URAYAHA Programming Language - コードは鳴き声。構文はまとも。エラーは泣く。"
 readme = "README.md"
 requires-python = ">=3.10"
-license = { file = "LICENSE" }
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "claudecat" }]
 keywords = ["programming-language", "interpreter", "compiler", "bytecode-vm"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Software Development :: Compilers",
     "Topic :: Software Development :: Interpreters",
     "Natural Language :: Japanese",
+    "Operating System :: OS Independent",
 ]
 dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/claudistcat/urayaha"
+Repository = "https://github.com/claudistcat/urayaha"
+Documentation = "https://github.com/claudistcat/urayaha/blob/main/docs/language-guide.md"
+Issues = "https://github.com/claudistcat/urayaha/issues"
+Changelog = "https://github.com/claudistcat/urayaha/blob/main/docs/roadmap.md"
 
 [project.scripts]
 urayaha = "urayaha.cli:main"
 
 [tool.setuptools]
 packages = ["urayaha"]
+
+# バージョンは urayaha/__init__.py の __version__ だけを正とする。
+# 2 か所に書くと、urayaha version の表示とパッケージのバージョンが
+# 食い違う事故が起きる。
+[tool.setuptools.dynamic]
+version = { attr = "urayaha.__version__" }
