@@ -234,9 +234,11 @@ $ urayaha run hello.ura
 | [CLI リファレンス](docs/cli.md) | コマンドとオプションと終了コード |
 | [エラー一覧](docs/errors.md) | 全エラーコードと、それが出る最小プログラム |
 | [うさぎ語早見表](docs/vocabulary.md) | 予約語と意味の対応 |
+| [ロードマップ](docs/roadmap.md) | どこへ向かっているか |
 
 処理系そのものを触りたい人は [CONTRIBUTING.md](CONTRIBUTING.md) と
-[docs/dev/](docs/dev/) を見てください。
+[docs/dev/](docs/dev/) を見てください。設計上の判断は
+[docs/dev/decisions/](docs/dev/decisions/) に残しています。
 
 ---
 

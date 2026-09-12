@@ -63,6 +63,14 @@ urayaha/
 仕様の矛盾をどう潰したかは
 [docs/dev/spec-decisions.md](docs/dev/spec-decisions.md) にあります。
 
+設計上の判断は [docs/dev/decisions/](docs/dev/decisions/) に ADR として
+残しています。**新しい機能を足す前に、関係する ADR を確認してください。**
+特に GUI やゲームに触るときは
+[ADR-0001(イベントループはホストが所有する)](docs/dev/decisions/0001-event-loop-ownership.md)
+が効きます。
+
+どの順で何をやるかは [ロードマップ](docs/roadmap.md) にあります。
+
 ---
 
 ## 気をつけること
