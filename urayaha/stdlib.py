@@ -358,6 +358,24 @@ def _s_join(vm, args, span):
     return args[0].join(urayaha_repr(x, vm.human_number) for x in args[1])
 
 
+def _s_slice(vm, args, span):
+    end = args[2] if len(args) > 2 else None
+    return args[0][args[1]:end]
+
+
+def _s_replace(vm, args, span):
+    return args[0].replace(args[1], args[2])
+
+
+def _s_strip(vm, args, span):
+    return args[0].strip()
+
+
+def _s_find(vm, args, span):
+    idx = args[0].find(args[1])
+    return None if idx == -1 else idx
+
+
 def _r_unwrap(vm, args, span):
     """Err の unwrap は throw と同じ(v0.4 追補)。ダメだった… で捕まえられる。"""
     result = args[0]
@@ -401,6 +419,10 @@ STRING_MEMBERS = {
     "ワケ": _bind("ワケ", _s_split, 0, 1),
     "ハァ?": _bind("ハァ?", _s_contains, 1, 1),
     "ツナグ": _bind("ツナグ", _s_join, 1, 1),
+    "フゥン": _bind("フゥン", _s_slice, 1, 2),
+    "ヤハ": _bind("ヤハ", _s_replace, 2, 2),
+    "イヤッ": _bind("イヤッ", _s_strip, 0, 0),
+    "フゥー…ン?": _bind("フゥー…ン?", _s_find, 1, 1),
 }
 RESULT_MEMBERS = {
     "なんとかなれーッ!": _bind("なんとかなれーッ!", _r_unwrap, 0, 0),

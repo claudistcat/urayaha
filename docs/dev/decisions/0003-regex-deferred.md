@@ -30,6 +30,10 @@ v0.2 の仕様書が机上で穴を作ったのと同じ失敗の仕方になる
 一方で「文字列の substring / replace / trim / startsWith / endsWith / find /
 大文字小文字変換」は、正規表現の有無にかかわらず確実に要る。こちらを先に入れる。
 
+> この範囲は [ADR-0004](0004-no-new-cries-for-api.md) で狭めた。v0.5 に入るのは
+> substring / replace / trim / find で、startsWith / endsWith / 大文字小文字変換は
+> v0.6 の dogfooding 待ちになっている。正規表現を保留する決定自体は変わらない。
+
 ## 判断の材料
 
 v0.6 で次を書いたときに、通常の文字列 API だけで足りたかを見る。

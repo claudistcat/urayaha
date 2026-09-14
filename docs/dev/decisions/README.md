@@ -10,6 +10,7 @@
 | [ADR-0001](0001-event-loop-ownership.md) | GUI とゲームのイベントループはホストが所有する | 採用 |
 | [ADR-0002](0002-urab-format.md) | `.urab` を pickle から自前のバイナリ形式へ移す | 採用(実装は v0.7) |
 | [ADR-0003](0003-regex-deferred.md) | 正規表現は保留する | 保留 |
+| [ADR-0004](0004-no-new-cries-for-api.md) | API を増やすためだけに鳴き声を新造しない | 採用 |
 
 ## 書き方
 

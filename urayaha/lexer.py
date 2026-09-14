@@ -92,6 +92,7 @@ KNOWN_WORDS = set(KEYWORDS) | set(TYPE_WORDS) | set([
     "ヤッタ?",   # Result が成功か
     "ワァ?",     # 標準入力
     "できる?",   # テスト宣言(v0.3 予約)
+    "フゥー…ン?", # String の find(v0.5)
 ])
 
 # 長い順に並べた既知語(後退時の探索用)

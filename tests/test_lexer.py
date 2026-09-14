@@ -77,6 +77,20 @@ class LexerTests(unittest.TestCase):
         self.assertEqual(tokens[0].kind, "FLOAT")
         self.assertEqual(tokens[0].value, 1.5)
 
+    def test_find_method_name_lexes_as_one_token(self):
+        tokens = self.tokens('"うさぎ".フゥー…ン?("さ")')
+        self.assertEqual(
+            [(t.kind, t.text) for t in tokens],
+            [("STRING", "うさぎ"), ("OP", "."), ("IDENT", "フゥー…ン?"),
+             ("OP", "("), ("STRING", "さ"), ("OP", ")")],
+        )
+
+    def test_find_method_name_normalizes_full_width_question_mark(self):
+        self.assertEqual(
+            [(t.kind, t.text) for t in self.tokens("フゥー…ン？")],
+            [("IDENT", "フゥー…ン?")],
+        )
+
     def test_word_tokens_require_whitespace(self):
         self.assertEqual([t.kind for t in self.tokens("ウラ ウラ")], ["ELSE", "ELSE"])
         self.assertEqual([(t.kind, t.text) for t in self.tokens("ウラウラ")], [("IDENT", "ウラウラ")])

@@ -169,6 +169,10 @@ STRING_METHODS = {
     "ワケ": lambda recv: Type(LIST, (T_STRING,)),
     "ツナグ": lambda recv: T_STRING,
     "ハァ?": lambda recv: T_BOOL,
+    "フゥン": lambda recv: T_STRING,
+    "ヤハ": lambda recv: T_STRING,
+    "イヤッ": lambda recv: T_STRING,
+    "フゥー…ン?": lambda recv: T_INT.opt(),
 }
 RESULT_METHODS = {
     "なんとかなれーッ!": lambda recv: (recv.args[0] if recv.args else T_ANY),

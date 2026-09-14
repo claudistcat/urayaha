@@ -54,11 +54,14 @@ Hello World から FizzBuzz、構造体、クロージャ、例外、Result、�
 
 | 領域 | 足すもの |
 |---|---|
-| 文字列 | substring / replace / trim / startsWith / endsWith / find / 大文字小文字変換 |
+| 文字列 | substring / replace / trim / find |
 | パス(`プスン`) | join / basename / dirname / extension / absolute / mkdir / **move(rename)** |
 | 日時(`フゥ～ンフゥン`) | format / parse |
 | HTTP(`プルャウラウラ`) | method 指定 / request headers / status code / response headers |
 | コレクション | キー関数つきソート |
+
+startsWith / endsWith / 大文字小文字変換は v0.5 の対象外にしました。判断理由は
+[ADR-0004](dev/decisions/0004-no-new-cries-for-api.md) にあります。
 
 **正規表現は保留します。** ログ解析には強力ですが、v1.0 に必須とは限りません。
 まず通常の文字列 API を充実させ、それでも実用アプリで必要と判明したら入れます

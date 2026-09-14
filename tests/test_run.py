@@ -214,6 +214,34 @@ class RunTests(unittest.TestCase):
 '''), "イヤ\n")
             self.assertFalse(path.exists())
 
+    def test_string_slice(self):
+        source = '''
+ヤハ ヤハァ = "うさぎとハチワレ"
+イヤッハー(ヤハァ.フゥン(ン・ン, ン・ャ))
+イヤッハー(ヤハァ.フゥン(ン・ャ))
+'''
+        self.assertEqual(run_source(source), "うさぎ\nとハチワレ\n")
+
+    def test_string_replace_replaces_all_occurrences(self):
+        source = '''
+イヤッハー("うさぎとハチワレとうさぎ".ヤハ("うさぎ", "ワァ"))
+'''
+        self.assertEqual(run_source(source), "ワァとハチワレとワァ\n")
+
+    def test_string_strip(self):
+        source = '''
+イヤッハー("  うさぎ  ".イヤッ())
+'''
+        self.assertEqual(run_source(source), "うさぎ\n")
+
+    def test_string_find_returns_position_or_null(self):
+        source = '''
+ヤハ ヤハァ = "うさぎとハチワレ"
+イヤッハー(ヤハァ.フゥー…ン?("ハチワレ"))
+イヤッハー(ヤハァ.フゥー…ン?("パジャマ"))
+'''
+        self.assertEqual(run_source(source), "ン・プン\n……\n")
+
     def test_json_round_trip(self):
         source = r'''
 これって… プルャ
