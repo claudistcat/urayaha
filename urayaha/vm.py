@@ -345,6 +345,12 @@ class VM(object):
                 stack.append(frame.locals[arg].v)
             elif op == C.STORE_LOCAL:
                 frame.locals[arg].v = stack.pop()
+            elif op == C.DECLARE_LOCAL:
+                # 既存の Cell を書き換えず、新しい Cell に差し替える。
+                # これで、この命令が実行されるたびに(ループの各周回ごとに)
+                # 独立した束縛になり、先に作られたクロージャは古い Cell を
+                # 握ったままになる。
+                frame.locals[arg] = Cell(stack.pop())
             elif op == C.LOAD_UPVAL:
                 stack.append(frame.upvalues[arg].v)
             elif op == C.STORE_UPVAL:

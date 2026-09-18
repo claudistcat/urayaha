@@ -20,7 +20,8 @@ from .errors import Diagnostic, UrayahaError
  GET_INDEX, SET_INDEX, GET_MEMBER, SET_MEMBER,
  MAKE_CLOSURE, MAKE_STRUCT, CONCAT,
  ITER_NEW, ITER_NEXT, SETUP_TRY, POP_TRY, THROW,
- MAKE_OK, MAKE_ERR, UNPACK, JUMP_IF_SET, CALL_KW) = range(49)
+ MAKE_OK, MAKE_ERR, UNPACK, JUMP_IF_SET, CALL_KW,
+ DECLARE_LOCAL) = range(50)
 
 OP_NAMES = {
     LOAD_CONST: "LOAD_CONST", LOAD_LOCAL: "LOAD_LOCAL",
@@ -42,6 +43,7 @@ OP_NAMES = {
     SETUP_TRY: "SETUP_TRY", POP_TRY: "POP_TRY", THROW: "THROW",
     MAKE_OK: "MAKE_OK", MAKE_ERR: "MAKE_ERR", UNPACK: "UNPACK",
     JUMP_IF_SET: "JUMP_IF_SET", CALL_KW: "CALL_KW",
+    DECLARE_LOCAL: "DECLARE_LOCAL",
 }
 
 BINARY_OPS = {"+": ADD, "-": SUB, "*": MUL, "/": DIV, "%": MOD,
@@ -147,6 +149,14 @@ class Compiler(object):
         fc.locals.append(_Local(name, fc.depth, slot))
         return slot
 
+    def _temp_local(self):
+        """名前を持たない作業用スロット(複合代入でベース式/添字式を
+        1 回だけ評価するために使う)。fc.locals には登録しないので、
+        通常の名前解決からは見えない。"""
+        slot = self.fc.proto.n_locals
+        self.fc.proto.n_locals += 1
+        return slot
+
     def _resolve_local(self, fc, name):
         for local in reversed(fc.locals):
             if local.name == name:
@@ -208,7 +218,10 @@ class Compiler(object):
             self._emit(DEFINE_GLOBAL, name, span)
         else:
             slot = self._declare_local(name)
-            self._emit(STORE_LOCAL, slot, span)
+            # DECLARE_LOCAL は STORE_LOCAL と違って Cell を新しく作る。
+            # ループ本体の中で何度も実行されても、各回の束縛が独立する
+            # (クロージャが前の回の Cell を握ったままになるのを防ぐ)。
+            self._emit(DECLARE_LOCAL, slot, span)
 
     def _s_VarDecl(self, node):
         self._expr(node.init)
@@ -329,7 +342,7 @@ class Compiler(object):
         var_slot = self._declare_local(node.var)
         start = len(self.fc.proto.code)
         exit_jump = self._emit(ITER_NEXT, None, node.span)
-        self._emit(STORE_LOCAL, var_slot, node.span)
+        self._emit(DECLARE_LOCAL, var_slot, node.span)
         self.fc.loop_stack.append({"start": start, "breaks": [], "continues": []})
         self._block(node.body)
         loop = self.fc.loop_stack.pop()
@@ -370,7 +383,7 @@ class Compiler(object):
         self._begin_scope()
         if node.catch_var:
             slot = self._declare_local(node.catch_var)
-            self._emit(STORE_LOCAL, slot, node.span)
+            self._emit(DECLARE_LOCAL, slot, node.span)
         else:
             self._emit(POP, None, node.span)
         for stmt in node.catch_body:
@@ -535,11 +548,37 @@ class Compiler(object):
                 self._emit(DUP, None, node.span)
                 self._store_name(target.name, node.span)
                 return
-            self._expr(target)
-            self._expr(node.value)
-            self._emit(binop, None, node.span)
-            self._assign_to(target, node.span)
-            return
+            if target.kind == "Index":
+                # obj/index は作業用スロットに 1 回だけ評価して控え、
+                # 読み出しと書き戻しの両方でそれを使い回す(副作用の
+                # ある式を [ ] の中に書いても 1 回しか走らないように)。
+                obj_slot = self._temp_local()
+                idx_slot = self._temp_local()
+                self._expr(target.obj)
+                self._emit(STORE_LOCAL, obj_slot, node.span)
+                self._expr(target.index)
+                self._emit(STORE_LOCAL, idx_slot, node.span)
+                self._emit(LOAD_LOCAL, obj_slot, node.span)
+                self._emit(LOAD_LOCAL, idx_slot, node.span)
+                self._emit(GET_INDEX, None, node.span)
+                self._expr(node.value)
+                self._emit(binop, None, node.span)
+                self._emit(LOAD_LOCAL, obj_slot, node.span)
+                self._emit(LOAD_LOCAL, idx_slot, node.span)
+                self._emit(SET_INDEX, None, node.span)
+                return
+            if target.kind == "Member":
+                obj_slot = self._temp_local()
+                self._expr(target.obj)
+                self._emit(STORE_LOCAL, obj_slot, node.span)
+                self._emit(LOAD_LOCAL, obj_slot, node.span)
+                self._emit(GET_MEMBER, target.name, node.span)
+                self._expr(node.value)
+                self._emit(binop, None, node.span)
+                self._emit(LOAD_LOCAL, obj_slot, node.span)
+                self._emit(SET_MEMBER, target.name, node.span)
+                return
+            self._fail("E0001", "ここには代入できないみたい", node.span)
         self._expr(node.value)
         self._assign_to(target, node.span)
 
