@@ -214,6 +214,66 @@ class RunTests(unittest.TestCase):
 '''), "イヤ\n")
             self.assertFalse(path.exists())
 
+    def test_compound_assign_evaluates_index_target_once(self):
+        source = '''
+ヤハ ヤハッ = ン・ン
+フゥン つぎ() ヤーッ
+    ヤハッ += ン・プ
+    ハァーッ ヤハッ - ン・プ
+ハァッ
+ヤハ ヤハァ = [ン・ン, ン・プ, ン・ル, ン・ャ]
+ヤハァ[つぎ()] += ン・プン
+イヤッハー(ヤハァ)
+イヤッハー(ヤハッ)
+'''
+        self.assertEqual(run_source(source),
+                         "[ン・プン, ン・プ, ン・ル, ン・ャ]\nン・プ\n")
+
+    def test_compound_assign_evaluates_member_receiver_once(self):
+        source = '''
+こういうこと？ ワッチ ヤーッ
+    ヤハァ: プルッ
+ハァッ
+ヤハ ヤハッ = ン・ン
+ヤハ プルャッ = [ワッチ(ヤハァ = ン・ン), ワッチ(ヤハァ = ン・プ)]
+フゥン つぎ() ヤーッ
+    ヤハッ += ン・プ
+    ハァーッ プルャッ[ヤハッ - ン・プ]
+ハァッ
+つぎ().ヤハァ += ン・プン
+イヤッハー(プルャッ[ン・ン].ヤハァ)
+イヤッハー(プルャッ[ン・プ].ヤハァ)
+イヤッハー(ヤハッ)
+'''
+        self.assertEqual(run_source(source), "ン・プン\nン・プ\nン・プ\n")
+
+    def test_foreach_closures_capture_independent_bindings(self):
+        source = '''
+ヤハ プルャッ = []
+ツツウラウラ [ン・ン, ン・プ, ン・ル] -> ヤハァ ヤーッ
+    プルャッ.ヤハ(フゥン() => ヤハァ)
+ハァッ
+ツツウラウラ プルャッ -> ヤハッ ヤーッ
+    イヤッハー(ヤハッ())
+ハァッ
+'''
+        self.assertEqual(run_source(source), "ン・ン\nン・プ\nン・ル\n")
+
+    def test_while_loop_closures_capture_independent_bindings(self):
+        source = '''
+ヤハ プルャッ = []
+ヤハ ヤハァ = ン・ン
+ウ～ラ～ ヤハァ < ン・ャ ヤーッ
+    ヤハ ヤハッ = ヤハァ
+    プルャッ.ヤハ(フゥン() => ヤハッ)
+    ヤハァ += ン・プ
+ハァッ
+ツツウラウラ プルャッ -> ヤハーッ ヤーッ
+    イヤッハー(ヤハーッ())
+ハァッ
+'''
+        self.assertEqual(run_source(source), "ン・ン\nン・プ\nン・ル\n")
+
     def test_json_round_trip(self):
         source = r'''
 これって… プルャ
