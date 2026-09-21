@@ -10,3 +10,7 @@ PROGRESS.autosave.md
 build_dist/
 build/
 .pypirc
+
+# examples を動かすとカレントにできる保存ファイル
+alarm.json
+todo.json
