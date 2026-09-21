@@ -47,7 +47,8 @@ jobs:
         run: |
           for f in examples/hello.ura examples/fizzbuzz.ura \
                    examples/fibonacci.ura examples/kitchen_sink.ura \
-                   examples/file_io.ura examples/urayaha.ura examples/todo.ura; do
+                   examples/file_io.ura examples/urayaha.ura examples/todo.ura \
+                   examples/alarm.ura; do
             echo "--- $f"
             urayaha run "$f" --quiet
           done

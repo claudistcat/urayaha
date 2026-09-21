@@ -20,6 +20,7 @@ v0.3 までの `ス.モグ` 形式は廃止し、標準モジュール自体に�
 import json as _json
 import os
 import random as _random
+import subprocess as _subprocess
 import sys
 import time as _time
 
@@ -247,10 +248,47 @@ def _os_exit(vm, args, span):
     raise SystemExit(args[0] if args else 0)
 
 
+def _os_launch_target(target):
+    """対象を OS に開かせる。Android の Intent、iOS の openURL と同じ契約。"""
+    if sys.platform == "win32":
+        os.startfile(target)
+    elif sys.platform == "darwin":
+        _subprocess.Popen(["open", target])
+    else:
+        _subprocess.Popen(["xdg-open", target])
+
+
+def _os_open(vm, args, span):
+    target = args[0]
+    if not (target.startswith("http://") or target.startswith("https://")):
+        if not os.path.exists(target):
+            return _fail('"%s" ないみたい…' % target)
+    try:
+        _os_launch_target(target)
+        return _ok(None)
+    except OSError as exc:
+        return _fail("開けなかったみたい… %s" % exc)
+
+
 # ------------------------------------------------------------------ 時刻・乱数
 
+DEFAULT_TIME_FORMAT = "%Y-%m-%d %H:%M:%S"
+
+
 def _time_now(vm, args, span):
-    return int(_time.time())
+    if not args:
+        return int(_time.time())
+    text = args[0]
+    fmt = args[1] if len(args) > 1 else DEFAULT_TIME_FORMAT
+    try:
+        return _ok(int(_time.mktime(_time.strptime(text, fmt))))
+    except (ValueError, OverflowError):
+        return _fail('"%s" 読めなかったみたい…' % text)
+
+
+def _time_format(vm, args, span):
+    fmt = args[1] if len(args) > 1 else DEFAULT_TIME_FORMAT
+    return _time.strftime(fmt, _time.localtime(args[0]))
 
 
 def _time_sleep(vm, args, span):
@@ -476,9 +514,11 @@ def build_standard_modules(argv=None):
             "フゥン": NativeFunc("ウロル.フゥン", _os_env, 1, 1),
             "プルャ": list(argv or []),
             "イヤッ": NativeFunc("ウロル.イヤッ", _os_exit, 0, 1),
+            "イヤッハー": NativeFunc("ウロル.イヤッハー", _os_open, 1, 1),
         }),
         "フゥ～ンフゥン": Namespace("フゥ～ンフゥン", {
-            "フゥン": NativeFunc("フゥ～ンフゥン.フゥン", _time_now, 0, 0),
+            "フゥン": NativeFunc("フゥ～ンフゥン.フゥン", _time_now, 0, 2),
+            "イヤッハー": NativeFunc("フゥ～ンフゥン.イヤッハー", _time_format, 1, 2),
             "ウ～ラ～": NativeFunc("フゥ～ンフゥン.ウ～ラ～", _time_sleep, 1, 1),
         }),
         "ウラーヤッハ": Namespace("ウラーヤッハ", {

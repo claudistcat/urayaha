@@ -56,7 +56,7 @@ Hello World から FizzBuzz、構造体、クロージャ、例外、Result、�
 |---|---|
 | 文字列 | substring / replace / trim / find |
 | パス(`プスン`) | join / basename / dirname / extension / absolute / mkdir / **move(rename)** |
-| 日時(`フゥ～ンフゥン`) | format / parse |
+| 日時(`フゥ～ンフゥン`) | 実装済み: `イヤッハー`(format)/`フゥン`(parse) |
 | HTTP(`プルャウラウラ`) | method 指定 / request headers / status code / response headers |
 | コレクション | キー関数つきソート |
 
@@ -73,6 +73,8 @@ startsWith / endsWith / 大文字小文字変換は v0.5 の対象外にしま�
 - ループ本体で作ったクロージャが Cell を共有する件
 - 複合代入(`+=` 等)を添字・メンバに使うと対象式が 2 回評価される件
 - 整形器が演算子まわりの空白を触らない件
+- 整形器が Map リテラルを実引数に渡したとき、中身だけ 1 段深く字下げして
+  閉じ括弧と揃わない件
 - 発行経路が無い診断コードの整理
 - ドキュメントと実装の差分(各リファレンスの `要確認` 節)
 
@@ -160,8 +162,12 @@ URAYAHA 製の実用アプリが複数存在することです。
 ## v1.x — 実用言語としての拡張
 
 既存コードとの互換性を維持しながら広げます。標準ライブラリの拡充、Path 操作、
-日時処理、Unicode と文字列処理、subprocess、networking、コレクション強化、
+日時処理、Unicode と文字列処理、networking、コレクション強化、
 パッケージとモジュール周辺、デバッグ、tooling です。
+
+外部プログラムの起動は `ウロル.イヤッハー` として v0.5 に前倒しで実装済みです。
+契約は「OS に開かせる」であって、コマンド起動ではありません
+([ADR-0005](dev/decisions/0005-os-open-not-launch.md))。
 
 「CLI 用途なら普通に使える」状態を目指します。
 
