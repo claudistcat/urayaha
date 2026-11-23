@@ -248,8 +248,24 @@ def _os_exit(vm, args, span):
     raise SystemExit(args[0] if args else 0)
 
 
+_opener = None
+
+
+def set_opener(fn):
+    """「対象を開く」処理をホストのものに差し替える(Android の Intent 発行など)。
+
+    ADR-0005 の「開く処理はホストの責任」を実装するフック。未設定なら
+    デスクトップの os.startfile / open / xdg-open にフォールバックする。
+    """
+    global _opener
+    _opener = fn
+
+
 def _os_launch_target(target):
     """対象を OS に開かせる。Android の Intent、iOS の openURL と同じ契約。"""
+    if _opener is not None:
+        _opener(target)
+        return
     if sys.platform == "win32":
         os.startfile(target)
     elif sys.platform == "darwin":
