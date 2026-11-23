@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">ウ～ラ～</string>
+    <string name="choose_video">鳴らすものを選ぶ</string>
+    <string name="no_video_selected">まだ選ばれていません</string>
+    <string name="save">ほぞんする</string>
+    <string name="next_alarm_prefix">つぎ: </string>
+    <string name="no_alarm_set">アラーム未設定</string>
+    <string name="exact_alarm_permission_title">正確なアラームの許可が必要です</string>
+    <string name="notification_channel_name">目覚まし通知</string>
+    <string name="ring_notification_text">鳴っています</string>
+    <string name="close">とじる</string>
+</resources>
