@@ -6,6 +6,35 @@ PyPI へ公開するまでの手順です。**公開は取り消せません。*
 
 ---
 
+## リモートの分け方（2026-11-23 から）
+
+開発は**非公開のリポジトリ**で進め、**公開リポジトリには仕上がった分だけ**出します。
+
+| リモート | 置き場所 | 公開 | 役割 |
+|---|---|---|---|
+| `private` | `claudistcat/urayaha-dev` | 非公開 | 日々の開発。`dev` ブランチはこちらを追跡します |
+| `origin` | `claudistcat/urayaha` | 公開 | 出来上がったものの公開先。`main` ブランチはこちらを追跡します |
+
+```bash
+git push                 # dev にいるとき => private/dev（非公開）へ行く
+git push origin main     # 公開するときだけ、明示して origin へ
+```
+
+**`dev` を `origin` へ押さないでください。** GitHub にブランチ単位の公開設定はないので、
+公開リポジトリに `dev` を押すと中身がそのまま公開されます（2026-11-23 以前の `dev` は
+すでに公開済みなので、`origin/dev` はその時点のまま残してあります）。
+
+公開するときの流れはこうです。
+
+```bash
+git checkout main
+git merge dev            # 早送りになるはず
+git push origin main     # 公開リポジトリへ
+git push private main    # 非公開側にも同じ main を置いておく
+```
+
+---
+
 ## 一度だけやること
 
 ### 1. PyPI のアカウントを作る
