@@ -46,7 +46,7 @@ ALIASES = {
     "ヤッハーヤーハー": "repl",
 }
 
-COMMANDS = ("run", "check", "build", "fmt", "test", "repl", "dump",
+COMMANDS = ("run", "check", "build", "fmt", "test", "repl", "term", "dump",
             "new", "version", "help")
 
 HELP = """urayaha - URAYAHA Programming Language {version}
@@ -58,6 +58,7 @@ Usage:
   urayaha fmt   <file|dir>            標準スタイルへ整形する
   urayaha test  [dir]                 tests/ のテストを走らせる
   urayaha repl                        対話環境を起動する
+  urayaha term                        窓で対話する(ターミナル)
   urayaha dump  <file>                処理系の内部表現を表示する
   urayaha new   <name>                プロジェクトの雛形を作る
   urayaha version                     バージョンを表示する
@@ -192,6 +193,8 @@ def main(argv=None):
         return EXIT_OK
     if command == "repl":
         return cmd_repl(opts)
+    if command == "term":
+        return cmd_term(opts)
     if command == "new":
         return cmd_new(rest, opts)
     if command == "test":
@@ -629,6 +632,133 @@ def cmd_repl(opts):
         _repl_eval(rt, source, opts)
 
 
+
+# ------------------------------------------------------------------ term
+
+TERM_HINT = "行を書いて Enter。:q でおしまい、:help で助け。"
+
+
+def cmd_term(opts):
+    """画面のターミナル。中身は repl と同じで、入出力だけ窓にする。"""
+    try:
+        import tkinter as tk
+        from tkinter import font as tkfont
+    except ImportError:
+        _err("この環境では窓を出せないみたい…（urayaha repl を使って）\n")
+        return EXIT_FAIL
+
+    rt = Runtime(".", [], opts["human"], opts["strict"])
+    root = tk.Tk()
+    root.title("うさぎのターミナル")
+    root.geometry("760x460")
+
+    mono = tkfont.nametofont("TkFixedFont").copy()
+    mono.configure(size=11)
+
+    frame = tk.Frame(root)
+    frame.pack(fill="both", expand=True)
+    out = tk.Text(frame, wrap="word", font=mono, state="disabled",
+                  background="#16213a", foreground="#e8ecf4",
+                  insertbackground="#e8ecf4", borderwidth=0,
+                  padx=8, pady=6)
+    bar = tk.Scrollbar(frame, command=out.yview)
+    out.configure(yscrollcommand=bar.set)
+    bar.pack(side="right", fill="y")
+    out.pack(side="left", fill="both", expand=True)
+    out.tag_configure("わらい", foreground="#3ccf7a")
+    out.tag_configure("なき", foreground="#ff8a8a")
+    out.tag_configure("うつし", foreground="#ffc53d")
+
+    row = tk.Frame(root)
+    row.pack(fill="x")
+    prompt = tk.Label(row, text=">>>", font=mono, width=4, anchor="e")
+    prompt.pack(side="left")
+    entry = tk.Entry(row, font=mono, borderwidth=2, relief="flat")
+    entry.pack(side="left", fill="x", expand=True, padx=(4, 8), pady=6)
+    entry.focus_set()
+
+    def write(text, tag=None):
+        if not text:
+            return
+        out.configure(state="normal")
+        out.insert("end", text, tag or ())
+        out.see("end")
+        out.configure(state="disabled")
+
+    buffer = []
+    history = []
+    cursor = {"i": 0}
+
+    write(REPL_BANNER + "\n", "わらい")
+    write(TERM_HINT + "\n\n")
+
+    def evaluate(source):
+        """repl と同じ評価。画面に出すために標準出力と標準エラーを借りる。"""
+        import io
+        got, cried = io.StringIO(), io.StringIO()
+        saved_out, saved_err = sys.stdout, sys.stderr
+        sys.stdout, sys.stderr = got, cried
+        try:
+            _repl_eval(rt, source, opts)
+        finally:
+            sys.stdout, sys.stderr = saved_out, saved_err
+        write(got.getvalue())
+        write(cried.getvalue(), "なき")
+
+    def submit(_event=None):
+        line = entry.get()
+        entry.delete(0, "end")
+        write(("... " if buffer else ">>> ") + line + "\n", "うつし")
+        if not buffer:
+            stripped = line.strip()
+            if stripped in (":q", ":quit"):
+                write("イヤッハー！\n", "わらい")
+                root.after(300, root.destroy)
+                return
+            if stripped in (":help", ":?"):
+                write(HELP)
+                return
+        if line.strip():
+            history.append(line)
+            cursor["i"] = len(history)
+        buffer.append(line)
+        source = "\n".join(buffer)
+        if _incomplete(source):
+            prompt.configure(text="...")
+            return
+        del buffer[:]
+        prompt.configure(text=">>>")
+        evaluate(source)
+
+    def back(_event=None):
+        if not history:
+            return
+        cursor["i"] = max(0, cursor["i"] - 1)
+        entry.delete(0, "end")
+        entry.insert(0, history[cursor["i"]])
+
+    def forward(_event=None):
+        if not history:
+            return
+        cursor["i"] = min(len(history), cursor["i"] + 1)
+        entry.delete(0, "end")
+        if cursor["i"] < len(history):
+            entry.insert(0, history[cursor["i"]])
+
+    def cancel(_event=None):
+        del buffer[:]
+        prompt.configure(text=">>>")
+        entry.delete(0, "end")
+        write("やめた\n", "なき")
+
+    entry.bind("<Return>", submit)
+    entry.bind("<Up>", back)
+    entry.bind("<Down>", forward)
+    entry.bind("<Escape>", cancel)
+    root.mainloop()
+    return EXIT_OK
+
+
 def _incomplete(source):
     from .lexer import lex
     from .errors import DiagnosticBag
@@ -663,6 +793,16 @@ def _repl_eval(rt, source, opts):
         raise
 
 
+# 打った式がこれ自身の呼び出しなら、戻り値(……)をもう一度出さない
+PRINTERS = ("イヤッハー", "イヤッハー…", "ウギッッ")
+
+
+def _is_print_call(node):
+    from . import ast_nodes as A
+    return (isinstance(node, A.Call) and isinstance(node.callee, A.Ident)
+            and node.callee.name in PRINTERS)
+
+
 def _as_expression(rt, source):
     """式だけを打ったときは値を表示する(§168)。"""
     from .lexer import lex
@@ -670,8 +810,10 @@ def _as_expression(rt, source):
     from .errors import DiagnosticBag
     try:
         tokens = lex(source, "<repl>", DiagnosticBag())
-        Parser(tokens, "<repl>", DiagnosticBag()).parse_expression_only()
+        node = Parser(tokens, "<repl>", DiagnosticBag()).parse_expression_only()
     except UrayahaError:
+        return source, False
+    if _is_print_call(node):
         return source, False
     return "イヤッハー(%s)" % source, True
 

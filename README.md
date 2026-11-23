@@ -254,6 +254,7 @@ urayaha build main.ura        # バイトコード .urab を dist/ へ出す
 urayaha fmt   main.ura        # 整形する(--check で差分の有無だけ)
 urayaha test                  # tests/ を走らせる
 urayaha repl                  # 対話環境
+urayaha term                  # 対話環境（窓）
 urayaha dump  --tokens main.ura
 urayaha new   myproject
 ```

@@ -318,3 +318,59 @@ class RunTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+class ReplExpressionTests(unittest.TestCase):
+    """repl と term が式をどう包むか。窓は出さない。"""
+
+    def setUp(self):
+        from urayaha.runtime import Runtime
+        self.rt = Runtime(".", [], True, False)
+
+    def _wrap(self, source):
+        from urayaha import cli
+        return cli._as_expression(self.rt, source)
+
+    def test_bare_expression_is_printed(self):
+        self.assertEqual(self._wrap("ン・プルャ"), ("イヤッハー(ン・プルャ)", True))
+
+    def test_print_call_is_not_wrapped_again(self):
+        for source in ('イヤッハー("ワァ")', 'イヤッハー…("ワァ")',
+                       'ウギッッ("なき")'):
+            self.assertEqual(self._wrap(source), (source, False))
+
+    def test_statement_is_left_alone(self):
+        source = "ヤハ ヤハァ = ン・プ"
+        self.assertEqual(self._wrap(source), (source, False))
+
+    def test_call_that_is_not_a_printer_is_wrapped(self):
+        source = "フゥンッ(ン・プ)"
+        self.assertEqual(self._wrap(source), ("イヤッハー(フゥンッ(ン・プ))", True))
+
+
+class TerminalCommandTests(unittest.TestCase):
+    """term が CLI に居ること。窓は開かない。"""
+
+    def test_term_is_a_command(self):
+        from urayaha import cli
+        self.assertIn("term", cli.COMMANDS)
+        self.assertTrue(callable(cli.cmd_term))
+
+    def test_term_says_so_when_there_is_no_tk(self):
+        import builtins
+        from urayaha import cli
+        real_import = builtins.__import__
+
+        def no_tk(name, *args, **kwargs):
+            if name == "tkinter":
+                raise ImportError("tkinter なんて知らない")
+            return real_import(name, *args, **kwargs)
+
+        err = io.StringIO()
+        builtins.__import__ = no_tk
+        try:
+            with contextlib.redirect_stderr(err):
+                code = cli.cmd_term({"human": False, "strict": False,
+                                     "quiet": False, "debug": False})
+        finally:
+            builtins.__import__ = real_import
+        self.assertEqual(code, cli.EXIT_FAIL)
+        self.assertIn("窓を出せない", err.getvalue())
