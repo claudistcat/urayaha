@@ -3,7 +3,7 @@
 - 状態: 採用
 - 日付: 2026-09-21
 - 対象: v0.5(`ウロル.イヤッハー`)、将来の Android / iOS ホスト
-- 関連: [ADR-0001](0001-event-loop-ownership.md)、[ADR-0002](0002-urab-format.md)
+- 関連: [ADR-0001](0001-event-loop-ownership.md)、[ADR-0002](0002-urab-format.md)、[ADR-0006](0006-process-launch.md)
 
 ## 決定
 

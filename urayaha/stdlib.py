@@ -19,6 +19,9 @@ v0.3 までの `ス.モグ` 形式は廃止し、標準モジュール自体に�
 
 import json as _json
 import os
+import locale as _locale
+import math as _math
+import shutil as _shutil
 import random as _random
 import subprocess as _subprocess
 import sys
@@ -53,6 +56,13 @@ def _print(vm, args, span):
 def _print_no_newline(vm, args, span):
     sys.stdout.write(" ".join(urayaha_repr(a, vm.human_number) for a in args))
     sys.stdout.flush()
+    return None
+
+
+def _print_err(vm, args, span):
+    """標準エラー出力。うまくいかなかった方の出力はこちらに流す。"""
+    sys.stderr.write(" ".join(urayaha_repr(a, vm.human_number)
+                              for a in args) + "\n")
     return None
 
 
@@ -133,8 +143,16 @@ def _fs_read(vm, args, span):
 
 
 def _fs_write(vm, args, span):
+    """1 引数ならディレクトリを作る。2 引数で上書き、3 引数目が真なら追記。"""
+    if len(args) == 1:
+        try:
+            os.makedirs(args[0], exist_ok=True)
+            return _ok(None)
+        except OSError:
+            return _fail('"%s" つくれないみたい…' % args[0])
+    mode = "ab" if len(args) > 2 and is_truthy(args[2]) else "wb"
     try:
-        f = open(args[0], "wb")
+        f = open(args[0], mode)
         try:
             f.write(urayaha_repr(args[1], vm.human_number).encode("utf-8"))
         finally:
@@ -145,6 +163,9 @@ def _fs_write(vm, args, span):
 
 
 def _fs_exists(vm, args, span):
+    """1 引数なら在るか。2 引数目が真なら「ディレクトリか」を見る。"""
+    if len(args) > 1 and is_truthy(args[1]):
+        return os.path.isdir(args[0])
     return os.path.exists(args[0])
 
 
@@ -157,11 +178,53 @@ def _fs_remove(vm, args, span):
 
 
 def _fs_list(vm, args, span):
+    """直下の名前を返す。2 引数目が真なら下まで潜って相対パスで返す。"""
     target = args[0] if args else "."
-    try:
-        return _ok(sorted(os.listdir(target)))
-    except OSError:
+    if not (len(args) > 1 and is_truthy(args[1])):
+        try:
+            return _ok(sorted(os.listdir(target)))
+        except OSError:
+            return _fail('"%s" のぞけないみたい…' % target)
+    if not os.path.isdir(target):
         return _fail('"%s" のぞけないみたい…' % target)
+    found = []
+    for root, dirs, files in os.walk(target):
+        for name in dirs + files:
+            rel = os.path.relpath(os.path.join(root, name), target)
+            found.append(rel.replace(os.sep, "/"))
+    return _ok(sorted(found))
+
+
+def _fs_move(vm, args, span):
+    """移動とリネーム。移した先に同じ名前があれば上書きする。"""
+    try:
+        _shutil.move(args[0], args[1])
+        return _ok(None)
+    except (OSError, _shutil.Error):
+        return _fail('"%s" を "%s" に移せないみたい…' % (args[0], args[1]))
+
+
+def _fs_copy(vm, args, span):
+    """コピー。ディレクトリを渡したら中身ごと写す。"""
+    try:
+        if os.path.isdir(args[0]):
+            _shutil.copytree(args[0], args[1], dirs_exist_ok=True)
+        else:
+            _shutil.copy2(args[0], args[1])
+        return _ok(None)
+    except (OSError, _shutil.Error):
+        return _fail('"%s" を "%s" に写せないみたい…' % (args[0], args[1]))
+
+
+def _fs_size(vm, args, span):
+    """ファイルならバイト数、ディレクトリなら直下の件数。"""
+    target = args[0]
+    try:
+        if os.path.isdir(target):
+            return _ok(len(os.listdir(target)))
+        return _ok(os.path.getsize(target))
+    except OSError:
+        return _fail('"%s" ないみたい…' % target)
 
 
 # ------------------------------------------------------------------ プルャ
@@ -259,6 +322,60 @@ def set_opener(fn):
     """
     global _opener
     _opener = fn
+
+
+_runner = None
+
+
+def set_runner(fn):
+    """コマンド起動をホストのものに差し替える(ADR-0006 のフック)。
+
+    引数の argv(文字列の List)を受け取り、ResultValue を返す関数を渡す。
+    起動させたくないホスト(Android など)は、失敗を返す関数を渡して塞ぐ。
+    """
+    global _runner
+    _runner = fn
+
+
+def _decode_out(raw):
+    """子プロセスの出力を読む。UTF-8 で読めなければ OS の既定で読み直す。
+
+    Windows の多くのコマンドは cp932 で書くので、UTF-8 固定にすると化ける。
+    """
+    try:
+        return raw.decode("utf-8")
+    except UnicodeDecodeError:
+        enc = _locale.getpreferredencoding(False) or "utf-8"
+        return raw.decode(enc, "replace")
+
+
+def _os_run(vm, args, span):
+    """コマンドを起動して標準出力を取る。シェルは通さない(ADR-0006)。"""
+    cmd = [args[0]] + [urayaha_repr(x, vm.human_number) for x in args[1]]
+    if _runner is not None:
+        return _runner(cmd)
+    try:
+        done = _subprocess.run(cmd, stdout=_subprocess.PIPE,
+                               stderr=_subprocess.PIPE)
+    except OSError:
+        return _fail('"%s" 動かせないみたい…' % args[0])
+    if done.returncode != 0:
+        why = _decode_out(done.stderr).strip()
+        return _fail('"%s" が %d で終わったみたい… %s'
+                     % (args[0], done.returncode, why))
+    return _ok(_decode_out(done.stdout))
+
+
+def _os_get(vm, args, span):
+    """1 引数なら環境変数の取得、2 引数ならコマンドを起動して出力を取る。"""
+    if len(args) == 1:
+        return _os_env(vm, args, span)
+    return _os_run(vm, args, span)
+
+
+def _os_has(vm, args, span):
+    """そのコマンドが使えるか。起動はしない。"""
+    return _shutil.which(args[0]) is not None
 
 
 def _os_launch_target(target):
@@ -371,8 +488,18 @@ def _l_join(vm, args, span):
 
 
 def _l_sort(vm, args, span):
+    """1 引数でキー関数、2 引数目が真なら大きい順。
+
+    キーを渡さず順序だけ変えたいときは `……` を渡す。
+    """
+    key = args[1] if len(args) > 1 and args[1] is not None else None
+    down = len(args) > 2 and is_truthy(args[2])
     try:
-        return sorted(args[0])
+        if key is not None:
+            return sorted(args[0],
+                          key=lambda x: vm.call_value(key, [x], span),
+                          reverse=down)
+        return sorted(args[0], reverse=down)
     except TypeError:
         _err("E2002", "これ同士は比べられないみたい", span)
 
@@ -458,7 +585,7 @@ LIST_MEMBERS = {
     "ハァ?": _bind("ハァ?", _l_filter, 1, 1),
     "ウラ": _bind("ウラ", _l_reduce, 1, 2),
     "ツナグ": _bind("ツナグ", _l_join, 0, 1),
-    "ナラベ": _bind("ナラベ", _l_sort, 0, 0),
+    "ナラベ": _bind("ナラベ", _l_sort, 0, 2),
     "アル?": _bind("アル?", _l_contains, 1, 1),
 }
 MAP_MEMBERS = {
@@ -506,16 +633,220 @@ def member_of_builtin(obj, name):
     return BoundMethod(obj, fn) if fn else None
 
 
+# ------------------------------------------------------------------ ウリリ(数)
+
+def _num_abs(vm, args, span):
+    """大きさ(絶対値)。"""
+    if not isinstance(args[0], (int, float)) or isinstance(args[0], bool):
+        _err("E2001", "これは数じゃないみたい", span)
+    return abs(args[0])
+
+
+def _num_drop(vm, args, span):
+    """小数を落とす。2 引数目が真なら上へ寄せる(切り上げ)。"""
+    if not isinstance(args[0], (int, float)) or isinstance(args[0], bool):
+        _err("E2001", "これは数じゃないみたい", span)
+    up = len(args) > 1 and is_truthy(args[1])
+    return int(_math.ceil(args[0])) if up else int(_math.floor(args[0]))
+
+
+def _num_get(vm, args, span):
+    """1 引数なら平方根、2 引数なら累乗。どちらも Float で返す。"""
+    for a in args:
+        if not isinstance(a, (int, float)) or isinstance(a, bool):
+            _err("E2001", "これは数じゃないみたい", span)
+    if len(args) == 1:
+        if args[0] < 0:
+            return _fail("マイナスの平方根はないみたい…")
+        return _ok(_math.sqrt(args[0]))
+    try:
+        return _ok(float(args[0]) ** float(args[1]))
+    except (OverflowError, ZeroDivisionError, ValueError):
+        return _fail("その累乗は計算できないみたい…")
+
+
+# ------------------------------------------------------------------ ウィーヤ(画面)
+
+# 画面の定義のキー。ホストはこれだけを見る
+_GUI_TITLE = "だいめい"
+_GUI_PARTS = "ぶひん"
+_GUI_KIND = "たね"
+_GUI_NAME = "なまえ"
+_GUI_TEXT = "ぶんめん"
+_GUI_PRESS = "おしたら"
+_GUI_EVERY = "まつ"
+_GUI_TICK = "まつとき"
+_GUI_KINDS = ("もじ", "ボタン", "いれる")
+
+
+class TkBackend(object):
+    """既定のバックエンド。Tkinter は Python 標準なので追加の用意が要らない。"""
+
+    def __init__(self):
+        self.root = None
+        self.widgets = {}
+        self.kinds = {}
+
+    def alive(self):
+        return self.root is not None
+
+    def show(self, vm, spec, call, span):
+        try:
+            import tkinter as tk
+        except ImportError:
+            return _fail("この環境では画面を出せないみたい…")
+        if self.root is not None:
+            return _fail("画面はもう出ているみたい…")
+
+        self.root = tk.Tk()
+        self.widgets = {}
+        self.kinds = {}
+        self.root.title(spec.get(_GUI_TITLE) or "うさぎ")
+
+        for part in spec.get(_GUI_PARTS) or []:
+            kind = part.get(_GUI_KIND)
+            name = part.get(_GUI_NAME)
+            text = part.get(_GUI_TEXT)
+            text = "" if text is None else urayaha_repr(text, vm.human_number)
+            if kind == "もじ":
+                widget = tk.Label(self.root, text=text)
+            elif kind == "ボタン":
+                widget = tk.Button(self.root, text=text)
+                pressed = part.get(_GUI_PRESS)
+                if pressed is not None:
+                    widget.config(command=call(pressed))
+            elif kind == "いれる":
+                widget = tk.Entry(self.root)
+                widget.insert(0, text)
+            else:
+                self.close()
+                return _fail('"%s" って部品は知らないみたい…' % kind)
+            widget.pack(fill="x", padx=8, pady=4)
+            if name is not None:
+                self.widgets[name] = widget
+                self.kinds[name] = kind
+
+        every = spec.get(_GUI_EVERY)
+        tick = spec.get(_GUI_TICK)
+        if every is not None and tick is not None:
+            wait = max(1, int(every))
+            handler = call(tick)
+
+            def again():
+                if self.root is None:
+                    return
+                handler()
+                if self.root is not None:
+                    self.root.after(wait, again)
+
+            self.root.after(wait, again)
+
+        self.root.protocol("WM_DELETE_WINDOW", self.close)
+        try:
+            self.root.mainloop()
+        finally:
+            self.close()
+        return _ok(None)
+
+    def set(self, name, text):
+        widget = self.widgets.get(name)
+        if widget is None:
+            return _fail('"%s" って部品はないみたい…' % name)
+        if self.kinds.get(name) == "いれる":
+            widget.delete(0, "end")
+            widget.insert(0, text)
+        else:
+            widget.config(text=text)
+        return _ok(None)
+
+    def get(self, name):
+        widget = self.widgets.get(name)
+        if widget is None:
+            return _fail('"%s" って部品はないみたい…' % name)
+        if self.kinds.get(name) == "いれる":
+            return _ok(widget.get())
+        return _ok(widget.cget("text"))
+
+    def close(self):
+        if self.root is None:
+            return _ok(None)
+        root, self.root = self.root, None
+        self.widgets = {}
+        self.kinds = {}
+        try:
+            root.destroy()
+        except Exception:
+            pass
+        return _ok(None)
+
+
+_gui = None
+
+
+def set_gui(backend):
+    """画面を出す係をホストのものに差し替える。None で既定(Tk)に戻す。
+
+    backend は alive / show / set / get / close を持つオブジェクト。
+    Android のように Tk が無いホストは、自分の実装を渡す。
+    """
+    global _gui
+    _gui = backend
+
+
+def _gui_backend():
+    global _gui
+    if _gui is None:
+        _gui = TkBackend()
+    return _gui
+
+
+def _gui_show(vm, args, span):
+    """画面を出して、閉じられるまで回す。ループを持つのはホスト(ADR-0001)。"""
+    spec = args[0]
+    if not isinstance(spec, dict):
+        _err("E2001", "画面の定義は Map で渡すみたい", span)
+
+    def call(fn):
+        def handler():
+            try:
+                vm.call_value(fn, [], span)
+            except UrayahaRuntimeError as err:
+                sys.stderr.write("ワァ…… %s\n" % err)
+                _gui_backend().close()
+        return handler
+
+    return _gui_backend().show(vm, spec, call, span)
+
+
+def _gui_set(vm, args, span):
+    return _gui_backend().set(args[0], urayaha_repr(args[1], vm.human_number))
+
+
+def _gui_get(vm, args, span):
+    return _gui_backend().get(args[0])
+
+
+def _gui_alive(vm, args, span):
+    return _gui_backend().alive()
+
+
+def _gui_close(vm, args, span):
+    return _gui_backend().close()
+
+
 # ------------------------------------------------------------------ モジュール
 
 def build_standard_modules(argv=None):
     return {
         "プスン": Namespace("プスン", {
             "フゥン": NativeFunc("プスン.フゥン", _fs_read, 1, 1),
-            "ヤハ": NativeFunc("プスン.ヤハ", _fs_write, 2, 2),
-            "ハァ?": NativeFunc("プスン.ハァ?", _fs_exists, 1, 1),
+            "ヤハ": NativeFunc("プスン.ヤハ", _fs_write, 1, 3),
+            "ハァ?": NativeFunc("プスン.ハァ?", _fs_exists, 1, 2),
             "イヤッ": NativeFunc("プスン.イヤッ", _fs_remove, 1, 1),
-            "ツツウラウラ": NativeFunc("プスン.ツツウラウラ", _fs_list, 0, 1),
+            "ン?": NativeFunc("プスン.ン?", _fs_size, 1, 1),
+            "トウッ": NativeFunc("プスン.トウッ", _fs_move, 2, 2),
+            "プルップラッ": NativeFunc("プスン.プルップラッ", _fs_copy, 2, 2),
+            "ツツウラウラ": NativeFunc("プスン.ツツウラウラ", _fs_list, 0, 2),
         }),
         "プルャ": Namespace("プルャ", {
             "フゥン": NativeFunc("プルャ.フゥン", _data_parse, 1, 1),
@@ -527,7 +858,8 @@ def build_standard_modules(argv=None):
             "ハァ?": NativeFunc("プルャウラウラ.ハァ?", _net_check, 1, 1),
         }),
         "ウロル": Namespace("ウロル", {
-            "フゥン": NativeFunc("ウロル.フゥン", _os_env, 1, 1),
+            "フゥン": NativeFunc("ウロル.フゥン", _os_get, 1, 2),
+            "ハァ?": NativeFunc("ウロル.ハァ?", _os_has, 1, 1),
             "プルャ": list(argv or []),
             "イヤッ": NativeFunc("ウロル.イヤッ", _os_exit, 0, 1),
             "イヤッハー": NativeFunc("ウロル.イヤッハー", _os_open, 1, 1),
@@ -540,6 +872,18 @@ def build_standard_modules(argv=None):
         "ウラーヤッハ": Namespace("ウラーヤッハ", {
             "フゥン": NativeFunc("ウラーヤッハ.フゥン", _rand, 0, 2),
         }),
+        "ウィーヤ": Namespace("ウィーヤ", {
+            "イヤッハー": NativeFunc("ウィーヤ.イヤッハー", _gui_show, 1, 1),
+            "ヤハ": NativeFunc("ウィーヤ.ヤハ", _gui_set, 2, 2),
+            "フゥン": NativeFunc("ウィーヤ.フゥン", _gui_get, 1, 1),
+            "ハァ?": NativeFunc("ウィーヤ.ハァ?", _gui_alive, 0, 0),
+            "イヤッ": NativeFunc("ウィーヤ.イヤッ", _gui_close, 0, 0),
+        }),
+        "ウリリ": Namespace("ウリリ", {
+            "ン?": NativeFunc("ウリリ.ン?", _num_abs, 1, 1),
+            "イヤッ": NativeFunc("ウリリ.イヤッ", _num_drop, 1, 2),
+            "フゥン": NativeFunc("ウリリ.フゥン", _num_get, 1, 2),
+        }),
     }
 
 
@@ -548,6 +892,7 @@ def build_globals():
     return {
         "イヤッハー": NativeFunc("イヤッハー", _print, 0, -1),
         "イヤッハー…": NativeFunc("イヤッハー…", _print_no_newline, 0, -1),
+        "ウギッッ": NativeFunc("ウギッッ", _print_err, 0, -1),
         "ワァ?": NativeFunc("ワァ?", _stdin, 0, 0),
         "プルッ": NativeFunc("プルッ", _to_int, 1, 1),
         "プルァッ": NativeFunc("プルァッ", _to_float, 1, 1),
@@ -562,6 +907,7 @@ def build_builtin_types():
     return {
         "イヤッハー": K.func_type([], K.T_VOID, 0, -1),
         "イヤッハー…": K.func_type([], K.T_VOID, 0, -1),
+        "ウギッッ": K.func_type([], K.T_VOID, 0, -1),
         "ワァ?": K.func_type([], K.T_STRING.opt(), 0, 0),
         "プルッ": K.func_type([any_t], K.T_INT, 1, 1),
         "プルァッ": K.func_type([any_t], K.T_FLOAT, 1, 1),
