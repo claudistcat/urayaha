@@ -34,6 +34,10 @@ Brainfuck のような「わざとプログラミングを難しくした言語�
 留めてあります。CLI ツール、ファイル変換、JSON 処理、HTTP アクセス、
 テキスト処理、ちょっとした自動化なら実際に書けます。
 
+**窓のあるアプリ（GUI）と、外部コマンドの呼び出しもできます。** 画面の定義は
+うさぎ語側が返し、ホスト（Tkinter）は組み立てるだけです。打ちながら試す用に、
+窓のターミナル（`urayaha term`）も入っています。
+
 エラーが出ると処理系が泣きます。
 
 ```
@@ -230,7 +234,7 @@ $ urayaha run hello.ura
 | | |
 |---|---|
 | [言語ガイド](docs/language-guide.md) | 言語の全体。まずこれ |
-| [標準ライブラリ](docs/stdlib.md) | ファイル・JSON・HTTP・時刻・乱数・OS |
+| [標準ライブラリ](docs/stdlib.md) | ファイル・JSON・HTTP・時刻・乱数・OS・数・画面 |
 | [CLI リファレンス](docs/cli.md) | コマンドとオプションと終了コード |
 | [エラー一覧](docs/errors.md) | 全エラーコードと、それが出る最小プログラム |
 | [うさぎ語早見表](docs/vocabulary.md) | 予約語と意味の対応 |
@@ -308,6 +312,22 @@ urayaha ヤッハーヤーハー           # = urayaha repl
 
 型推論・クロージャ・パイプ演算子 `|>`・Null 合体 `??`・Optional・
 可変長引数・既定値引数・分解代入・文字列補間があります。
+
+---
+
+## 入っているもの
+
+| | |
+|---|---|
+| 言語コア | 字句解析・再帰下降パーサ・名前解決・型検査・バイトコード VM |
+| 道具 | `run` `check` `build` `fmt` `test` `repl` **`term`（窓で対話）** `dump` `new` |
+| 標準ライブラリ | ファイル（`プスン`）/ JSON（`プルャ`）/ HTTP（`プルャウラウラ`）/ OS と**コマンド起動**（`ウロル`）/ 時刻（`フゥ～ンフゥン`）/ 乱数（`ウラーヤッハ`）/ 数（`ウリリ`）/ **画面（`ウィーヤ`）** |
+| 実例 | [examples/](examples/) に Hello World から FizzBuzz、モジュール、ファイル I/O、JSON と HTTP、TODO 管理 CLI、目覚まし、**デジタル時計（GUI）** |
+| おまけ | [android/](android/) に Android 版の目覚まし。鳴る時刻と再生するものの判断は `.ura` 側にあり、Kotlin は画面と通知と AlarmManager の器だけ |
+
+画面とコマンド起動については、なぜその形にしたかを
+[ADR-0007](docs/dev/decisions/0007-gui-spec-from-ura.md) と
+[ADR-0006](docs/dev/decisions/0006-process-launch.md) に残しています。
 
 ---
 
